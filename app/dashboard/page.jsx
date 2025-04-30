@@ -2,16 +2,24 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import ResumeUploadForm from "../components/ResumeUploadForm";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
-  const [errorLoadingFiles, setErrorLoadingFiles] = useState(null);
 
+  // State
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [errorLoadingFiles, setErrorLoadingFiles] = useState(null);
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [parsedData, setParsedData] = useState(null);
+  const [resumeScore, setResumeScore] = useState(null);
+  const [atsWarnings, setAtsWarnings] = useState([]);
+  const [atsScore, setAtsScore] = useState(100); // <-- new state
+
+  // Helper to format bytes → KB / MB
   function formatFileSize(bytes) {
     if (bytes >= 1024 * 1024) {
       return (bytes / (1024 * 1024)).toFixed(2) + " MB";
@@ -19,123 +27,244 @@ export default function DashboardPage() {
     return (bytes / 1024).toFixed(2) + " KB";
   }
 
-  const handleDelete = async (filename) => {
-    if (!confirm(`Are you sure you want to delete ${filename}?`)) {
-      return;
-    }
-
+  // Fetch list of uploaded files
+  const fetchFiles = useCallback(async () => {
+    setIsLoadingFiles(true);
+    setErrorLoadingFiles(null);
     try {
-      const res = await fetch("/api/delete", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ filename }),
-      });
-
-      if (res.ok) {
-        alert("File deleted successfully!");
-        // Refresh the uploaded files list
-        const response = await fetch("/api/uploads");
-        if (response.ok) {
-          const data = await response.json();
-          setUploadedFiles(data.files || []);
-        } else {
-          console.error("Failed to refresh file list after delete.");
-          setErrorLoadingFiles("Failed to refresh file list.");
-        }
-      } else {
-        alert("Failed to delete file. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error deleting file:", error);
-      alert("An error occurred while deleting the file.");
+      const res = await fetch("/api/uploads");
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const { files } = await res.json();
+      setUploadedFiles(files || []);
+    } catch (e) {
+      console.error("Error fetching files:", e);
+      setErrorLoadingFiles("Failed to load uploaded resumes.");
+      setUploadedFiles([]);
+    } finally {
+      setIsLoadingFiles(false);
     }
-  };
+  }, []);
 
+  // Initial load
   useEffect(() => {
-    async function fetchFiles() {
-      setIsLoadingFiles(true);
-      setErrorLoadingFiles(null);
-      try {
-        const response = await fetch("/api/uploads");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setUploadedFiles(data.files || []);
-      } catch (error) {
-        console.error("Error fetching uploaded files:", error);
-        setErrorLoadingFiles("Failed to load uploaded files.");
-        setUploadedFiles([]);
-      } finally {
-        setIsLoadingFiles(false);
-      }
-    }
+    if (session) fetchFiles();
+  }, [session, fetchFiles]);
 
-    if (session) {
-      fetchFiles();
-    }
-  }, [session]);
-
-  if (status === "loading") {
-    return <p>Loading user session...</p>;
-  }
-
+  // Protect route
+  if (status === "loading") return <p>Loading session...</p>;
   if (!session) {
     router.push("/");
     return null;
   }
 
+  // Handle file selection
+  const handleFileChange = (e) => {
+    setFile(e.target.files[0]);
+  };
+
+  // Upload & parse
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!file) return;
+
+    setUploading(true);
+    setParsedData(null);
+    setResumeScore(null);
+    setAtsWarnings([]);
+    setAtsScore(100); // Reset ATS score on new upload
+
+    const formData = new FormData();
+    formData.append("resume", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+
+      const { filename, parsedData: pd, resumeScore: rs, atsWarnings: aw } = await res.json();
+      alert(`Uploaded ${filename} successfully!`);
+      setParsedData(pd || null);
+      setResumeScore(rs || null);
+      setAtsWarnings(aw || []);
+      // Consider ATS score = 100 - (warnings * 20)
+      const calculatedAtsScore = Math.max(100 - (aw?.length * 20), 0);
+      setAtsScore(calculatedAtsScore);
+      setFile(null);
+      await fetchFiles();
+    } catch (e) {
+      console.error(e);
+      alert("Upload error—please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Delete
+  const handleDelete = async (filename) => {
+    if (!confirm(`Delete "${filename}"?`)) return;
+
+    try {
+      const res = await fetch("/api/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+      });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+
+      alert(`Deleted ${filename}`);
+      await fetchFiles();
+    } catch (e) {
+      console.error(e);
+      alert("Delete error—please try again.");
+    }
+  };
+
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-4">Welcome, {session.user.name}</h1>
-      <p className="mb-8">Email: {session.user.email}</p>
+      <h1 className="text-3xl font-bold mb-2">Welcome, {session.user.name}</h1>
+      <p className="mb-6">{session.user.email}</p>
 
-      <h2 className="text-2xl font-semibold mb-2">Upload Your Resume</h2>
-      <ResumeUploadForm onFileUpload={async () => {
-        // After a successful upload, refresh the file list
-        await new Promise(resolve => setTimeout(resolve, 500)); // Small delay to ensure file is written
-        const response = await fetch("/api/uploads");
-        if (response.ok) {
-          const data = await response.json();
-          setUploadedFiles(data.files || []);
-        } else {
-          console.error("Failed to refresh file list after upload");
-          setErrorLoadingFiles("Failed to refresh file list.");
-        }
-      }} />
+      {/* Upload Form */}
+      <section className="mb-8">
+        <h2 className="text-2xl font-semibold mb-2">Upload Your Resume</h2>
+        <form onSubmit={handleUpload} className="flex items-center gap-4">
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={handleFileChange}
+            disabled={uploading}
+          />
+          <button
+            type="submit"
+            disabled={uploading || !file}
+            className="bg-green-500 text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            {uploading ? "Uploading…" : "Upload"}
+          </button>
+        </form>
+      </section>
 
-      <h2 className="text-2xl font-semibold mt-8 mb-2">Your Uploaded Resumes</h2>
-
-      {isLoadingFiles ? (
-        <p>Loading uploaded resumes...</p>
-      ) : errorLoadingFiles ? (
-        <p className="text-red-500">{errorLoadingFiles}</p>
-      ) : uploadedFiles.length > 0 ? (
-        <ul>
-          {uploadedFiles.map((file) => (
-            <li key={file.name} className="flex items-center gap-4 mb-2">
-              <span>{file.name} ({formatFileSize(file.size)})</span>
-              <a
-                href={`/uploads/${file.name}`}
-                download
-                className="bg-blue-500 text-white px-4 py-2 rounded"
-              >
-                Download
-              </a>
-              <button
-                onClick={() => handleDelete(file.name)}
-                className="bg-red-500 text-white px-4 py-2 rounded"
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>No uploaded resumes found.</p>
+      {/* Parsed Data */}
+      {parsedData && (
+        <section className="mb-8">
+          <h3 className="text-xl font-semibold mb-2">Parsed Resume Data</h3>
+          <div>
+            <strong>Name: </strong> {parsedData.name || "Not Found"}
+          </div>
+          <div>
+            <strong>Emails: </strong> {parsedData.emails?.length > 0 ? parsedData.emails.join(", ") : "No emails found"}
+          </div>
+          <div>
+            <strong>Skills: </strong> {parsedData.skills?.length > 0 ? parsedData.skills.join(", ") : "No skills found"}
+          </div>
+          <div>
+            <strong>Experience: </strong>
+            <ul>
+              {parsedData.experience?.length > 0
+                ? parsedData.experience.map((exp, idx) => <li key={idx}>{exp}</li>)
+                : "No experience found"}
+            </ul>
+          </div>
+          <div>
+            <strong>Education: </strong>
+            <ul>
+              {parsedData.education?.length > 0
+                ? parsedData.education.map((edu, idx) => <li key={idx}>{edu}</li>)
+                : "No education found"}
+            </ul>
+          </div>
+          <div>
+            <strong>Projects: </strong>
+            <ul>
+              {parsedData.projects?.length > 0
+                ? parsedData.projects.map((proj, idx) => <li key={idx}>{proj}</li>)
+                : "No projects found"}
+            </ul>
+          </div>
+        </section>
       )}
+
+      {/* Resume Score */}
+      {resumeScore && (
+        <div className="mt-6">
+          <h3 className="text-xl font-bold mb-2">Resume Score: {resumeScore?.totalScore} / 100</h3>
+          <ul className="list-disc ml-6 text-sm">
+            {Object.entries(resumeScore?.breakdown || {}).map(([key, val]) => (
+              <li key={key}>
+                {key[0].toUpperCase() + key.slice(1)}: {val} / {
+                  key === "skills" ? 30 : key === "experience" ? 30 : key === "education" ? 20 : key === "projects" ? 10 : 10
+                }
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ATS Warnings and Score */}
+      {atsWarnings.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-bold mb-2">ATS Compatibility Score</h3>
+          <div className="flex items-center gap-6">
+            <div className="relative w-24 h-24 rounded-full border-4 border-red-400 flex items-center justify-center text-xl font-bold text-red-700">
+              {atsScore}%
+            </div>
+            <ul className="list-disc text-sm text-red-600">
+              {atsWarnings.map((warn, idx) => (
+                <li key={idx}>{warn}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+      {atsWarnings.length === 0 && parsedData && (
+        <div className="mt-6">
+          <h3 className="text-lg font-bold mb-2">ATS Compatibility Score</h3>
+          <div className="flex items-center gap-6">
+            <div className="relative w-24 h-24 rounded-full border-4 border-green-400 flex items-center justify-center text-xl font-bold text-green-700">
+              {atsScore}%
+            </div>
+            <p className="text-sm text-green-600">No significant ATS compatibility warnings found.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Uploaded Files List */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-2">Your Uploaded Resumes</h2>
+
+        {isLoadingFiles ? (
+          <p>Loading resumes…</p>
+        ) : errorLoadingFiles ? (
+          <p className="text-red-500">{errorLoadingFiles}</p>
+        ) : uploadedFiles.length > 0 ? (
+          <ul className="space-y-2">
+            {uploadedFiles.map(({ name, size }) => (
+              <li key={name} className="flex items-center gap-4">
+                <span>
+                  {name} ({formatFileSize(size)})
+                </span>
+                <a
+                  href={`/uploads/${name}`}
+                  download
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                >
+                  Download
+                </a>
+                <button
+                  onClick={() => handleDelete(name)}
+                  className="bg-red-500 text-white px-3 py-1 rounded"
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No resumes uploaded yet.</p>
+        )}
+      </section>
     </div>
   );
 }
