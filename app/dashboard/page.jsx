@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import RecommendedJobs from "../components/RecommendedJobs"; // <-- Import the component
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [resumeScore, setResumeScore] = useState(null);
   const [atsWarnings, setAtsWarnings] = useState([]);
   const [atsScore, setAtsScore] = useState(100); // <-- new state
+  const [recommendedJobsSkills, setRecommendedJobsSkills] = useState([]); // State for skills
 
   // Helper to format bytes → KB / MB
   function formatFileSize(bytes) {
@@ -71,7 +73,8 @@ export default function DashboardPage() {
     setParsedData(null);
     setResumeScore(null);
     setAtsWarnings([]);
-    setAtsScore(100); // Reset ATS score on new upload
+    setAtsScore(100);
+    setRecommendedJobsSkills([]); // Reset skills on new upload
 
     const formData = new FormData();
     formData.append("resume", file);
@@ -88,9 +91,9 @@ export default function DashboardPage() {
       setParsedData(pd || null);
       setResumeScore(rs || null);
       setAtsWarnings(aw || []);
-      // Consider ATS score = 100 - (warnings * 20)
       const calculatedAtsScore = Math.max(100 - (aw?.length * 20), 0);
       setAtsScore(calculatedAtsScore);
+      setRecommendedJobsSkills(pd?.skills || []); // Set skills for recommendations
       setFile(null);
       await fetchFiles();
     } catch (e) {
@@ -228,6 +231,14 @@ export default function DashboardPage() {
             <p className="text-sm text-green-600">No significant ATS compatibility warnings found.</p>
           </div>
         </div>
+      )}
+
+      {/* Recommended Jobs */}
+      {parsedData?.skills?.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-2xl font-semibold mb-2">Recommended Jobs</h2>
+          <RecommendedJobs skills={recommendedJobsSkills} />
+        </section>
       )}
 
       {/* Uploaded Files List */}
