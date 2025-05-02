@@ -1,50 +1,49 @@
 import { NextResponse } from "next/server";
-import fetch from "node-fetch";
-import * as cheerio from "cheerio";
 
 export async function GET(req) {
+  // 1️⃣ Parse incoming skills
   const { searchParams } = new URL(req.url);
   const rawSkills = searchParams.get("skills") || "";
+  console.log("[API] Raw skills from query:", rawSkills);
+
   const skills = rawSkills
     .split(",")
-    .map((s) => s.trim())
+    .map((s) =>
+      s
+        .trim()
+        .replace(/\.+$/g, "")      // strip trailing dots
+        .toLowerCase()             // lowercase for comparison
+    )
     .filter(Boolean);
+  console.log("[API] Parsed skills array:", skills);
 
-  console.log("[API] Raw skills from query:", rawSkills);
-  console.log("[API] Parsed skills:", skills);
-
-  const query = skills.join("-").toLowerCase() + "-jobs";
-  const url = `https://www.naukri.com/${query}`;
-
-  let jobs = [];
+  // 2️⃣ Fetch all jobs (no category filter)
+  const url = `https://www.themuse.com/api/public/jobs?page=1`;
+  console.log("[API] Fetching all jobs from URL:", url);
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-          "(KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36",
-      },
-    });
-    const html = await res.text();
-    const $ = cheerio.load(html);
+    const response = await fetch(url);
+    const result = await response.json();
 
-    $(".jobTuple").each((i, el) => {
-      if (jobs.length >= 10) return;
+    const totalFetched = (result.results || []).length;
+    console.log("[API] Total jobs fetched:", totalFetched);
 
-      const title = $(el).find(".title").text().trim();
-      const company = $(el).find(".companyInfo .subTitle").text().trim();
-      const location = $(el).find(".location .ellipsis").text().trim();
-      const link = $(el).find("a.title").attr("href");
+    // 3️⃣ Return all jobs without filtering
+    const jobs = (result.results || []).map((job) => ({
+      title: job.name,
+      company: job.company.name,
+      location: job.locations.map((loc) => loc.name).join(", "),
+      link: job.refs?.landing_page,
+    }));
 
-      if (title && company && location && link) {
-        jobs.push({ title, company, location, link });
-      }
-    });
-  } catch (err) {
-    console.error("[API] Error fetching or parsing Naukri HTML:", err);
+    console.log("[API] Jobs to return:", jobs.length);
+
+    return NextResponse.json({ jobs });
+  } catch (error) {
+    console.error("[API] Error fetching or parsing The Muse jobs:", error);
+    return NextResponse.json(
+      { jobs: [], error: "Failed to fetch jobs." },
+      { status: 500 }
+    );
   }
-
-  console.log("[API] Jobs to return:", jobs);
-  return NextResponse.json({ jobs });
 }

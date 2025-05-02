@@ -233,13 +233,22 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Recommended Jobs */}
-      {parsedData?.skills?.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-2xl font-semibold mb-2">Recommended Jobs</h2>
-          <RecommendedJobs skills={recommendedJobsSkills} />
-        </section>
-      )}
+// Inside your JSX rendering the job recommendations
+{parsedData?.skills?.length > 0 && (
+  <section className="mt-8">
+    <h2 className="text-2xl font-semibold mb-2">Recommended Jobs</h2>
+    <RecommendedJobs
+      skills={parsedData.skills
+        .flatMap(skill => skill.split(/[,|•\-]/)) // split by commas, pipes, bullets, dashes
+        .map(s =>
+          s
+            .replace(/[^a-zA-Z0-9.+#]/g, "") // remove unwanted characters
+            .trim()
+        )
+        .filter(Boolean)}
+    />
+  </section>
+)}
 
       {/* Uploaded Files List */}
       <section>

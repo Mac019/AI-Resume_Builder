@@ -1,4 +1,5 @@
 // File: /app/api/upload/route.js
+
 import { scoreResume } from "../../lib/scoreResume";
 import { checkATSFormatting } from "../../lib/atsChecker";
 import { writeFile, mkdir } from "fs/promises";
@@ -6,9 +7,7 @@ import path from "path";
 import { NextResponse } from "next/server";
 
 // Disable Next.js built-in body parser so we can handle formData
-export const config = {
-  api: { bodyParser: false },
-};
+export const config = { api: { bodyParser: false } };
 
 export async function POST(request) {
   console.log("[upload] POST called");
@@ -24,28 +23,22 @@ export async function POST(request) {
       );
     }
 
-    // Convert to buffer
+    // write the uploaded file
     const buffer = Buffer.from(await file.arrayBuffer());
-
-    // Ensure uploads folder exists
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
-    console.log("[upload] uploadDir ensured:", uploadDir);
-
-    // Write the uploaded file
     const filePath = path.join(uploadDir, file.name);
     console.log("[upload] writing file to:", filePath);
     await writeFile(filePath, buffer);
 
-    // Parse PDF if it's a PDF, using dynamic require to avoid webpack bundling test data
+    // parse & process
     let parsedData = null;
     if (file.type === "application/pdf") {
       console.log("[upload] parsing PDF");
       parsedData = await parsePdf(buffer);
     }
 
-    let resumeScore = null;
-    let atsWarnings = null;
+    let resumeScore = null, atsWarnings = null;
     if (parsedData) {
       console.log("[upload] scoring resume");
       resumeScore = scoreResume(parsedData);
@@ -62,7 +55,7 @@ export async function POST(request) {
       filename: file.name,
       parsedData,
       resumeScore,
-      atsWarnings, // ← add this
+      atsWarnings,
     });
 
   } catch (error) {
@@ -76,55 +69,77 @@ export async function POST(request) {
 
 async function parsePdf(buffer) {
   try {
-    // Dynamically load pdf-parse to avoid webpack test data bundling
     const pdfParse = eval('require')('pdf-parse');
     const data = await pdfParse(buffer);
-    const text = data.text;
 
-    // Normalize text
+    const text = data.text || "";
     const cleanedText = text.replace(/\r\n|\r/g, "\n").replace(/\n{2,}/g, "\n\n");
 
-    // Emails
-    const emails = cleanedText.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,6}/gi) || [];
+    // Extract emails
+    const emails = cleanedText.match(/[\w.+-]+@[\w-]+\.[\w.-]+/gi) || [];
 
-    // Extract name as line before email
+    // Extract name: line before first email
     let name = "Not Found";
-    if (emails.length > 0) {
+    if (emails.length) {
       const lines = cleanedText.split("\n");
-      const emailLineIndex = lines.findIndex(line => line.includes(emails[0]));
-      if (emailLineIndex > 0) {
-        name = lines[emailLineIndex - 1].trim(); // line before email
-        // Optional: If that line is city (like 'pune, maharashtra'), go one more up
-        const lowerName = name.toLowerCase();
-        if (lowerName.includes("pune") || lowerName.includes("maharashtra") || lowerName.includes("pimpri-chinchwad")) {
-          name = lines[emailLineIndex - 2]?.trim() || name;
-        }
-      }
+      const idx = lines.findIndex(l => l.includes(emails[0]));
+      if (idx > 0) name = lines[idx - 1].trim();
     }
 
-    // Section extractor
-    const extractSection = (label) => {
-      const pattern = new RegExp(`${label}\\n([\\s\\S]*?)(\\n[A-Z ]{3,}|$)`, "i");
-      const match = cleanedText.match(pattern);
-      return match ? match[1].trim().split("\n").filter(Boolean) : [];
+    // utility: extract a section by its uppercase heading
+    const extractSection = label => {
+      const re = new RegExp(`${label}\\n([\\s\\S]*?)(\\n[A-Z ]{3,}|$)`, "i");
+      const m = cleanedText.match(re);
+      return m ? m[1].trim().split("\n").filter(Boolean) : [];
     };
 
-    const education = extractSection("EDUCATION");
-    const experience = extractSection("EXPERIENCE");
-    const skills = extractSection("SKILLS");
-    const projects = extractSection("PROJECTS");
+    // **NEW** super-clean skills extractor
+    const cleanSkills = rawLines => {
+      return rawLines
+        // 1. drop the "Programming languages" prefix if present
+        .map(line => line.replace(/.*Programming languages[:\-]*/i, ""))
+        // 2. split on comma / semicolon / bullet / slash
+        .flatMap(line => line.split(/[,;•\/]/g))
+        // 3. strip out any leftover non-word characters (but keep + . #)
+        .map(s => s.replace(/[^a-zA-Z0-9.+#]/g, "").trim())
+        // 4. to lowercase for uniform comparison
+        .map(s => s.toLowerCase())
+        // 5. drop empty, drop "programming" itself if it survives
+        .filter(s => s && s !== "programming")
+        // 6. dedupe
+        .filter((v, i, a) => a.indexOf(v) === i)
+        // 7. capitalize first letter
+        .map(s => s.charAt(0).toUpperCase() + s.slice(1));
+    };
+
+    // Extract & clean
+    const rawSkills = extractSection("SKILLS");
+    const skills = cleanSkills(rawSkills);
+
+    // Fix: Replace 'Postgressql' with 'PostgreSQL'
+    const fixedSkills = skills.map(s => s.replace('Postgressql', 'PostgreSQL'));
+    console.log("[upload] final cleaned skills:", fixedSkills);
 
     return {
       name,
       emails,
-      education,
-      experience,
-      skills,
-      projects,
+      education: extractSection("EDUCATION"),
+      experience: extractSection("EXPERIENCE"),
+      skills: fixedSkills, // Use the fixed skills list
+      projects: extractSection("PROJECTS"),
       text: cleanedText,
     };
   } catch (err) {
     console.error("PDF parse error:", err);
-    return {};
+    return {
+      name: "Parsing failed",
+      emails: [],
+      education: [],
+      experience: [],
+      skills: [],
+      projects: [],
+      text: "",
+      error: "Could not parse the uploaded PDF.",
+    };
   }
 }
