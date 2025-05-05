@@ -4,7 +4,7 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto">
           {/* Logo and tagline */}
           <div className="mb-10">
-            <h2 className="text-2xl font-semibold">RESUME <span className="font-light">WORDED</span></h2>
+            <h2 className="text-2xl font-semibold">JCUBE AI <span className="font-light">RESUSME BUILDER</span></h2>
             <p className="text-gray-400 mt-2">Get the job you deserve, faster.</p>
           </div>
   
