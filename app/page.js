@@ -1,14 +1,11 @@
 import AuthButton from "../app/components/AuthButton";
-import Navbar from "../app/components/Navbar";
 import HeroSection from "../app/components/HeroSection";
 import ImproveResumeSection from "../app/components/ImproveResumeSection";
-import Footer from "../app/components/Footer";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#140065] to-[#0B0B3B] text-white">
-      {/* Top Navigation */}
-      <Navbar />
+
 
       {/* Hero Section */}
       <main className="flex flex-col items-center justify-center px-8 py-20 text-center">
@@ -34,7 +31,7 @@ export default function HomePage() {
       <section className="mt-12 px-8">
         <HeroSection />
         <ImproveResumeSection />
-        <Footer />
+  
       </section>
     </div>
   );
