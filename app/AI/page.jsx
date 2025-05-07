@@ -1,6 +1,7 @@
-// pages/ai-interview/domain-selection.jsx
+// app/AI/page.jsx
+'use client'
 import { useState } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation'; // Import from 'next/navigation' in app directory
 
 export default function DomainSelection() {
   const [selectedDomain, setSelectedDomain] = useState('');
@@ -8,7 +9,7 @@ export default function DomainSelection() {
 
   const handleDomainSelect = () => {
     if (selectedDomain) {
-      router.push(`/ai-interview/interview?domain=${selectedDomain}`);
+      router.push(`/AI/interview?domain=${selectedDomain}`); // Adjust path for app directory
     } else {
       alert('Please select a domain to proceed.');
     }
