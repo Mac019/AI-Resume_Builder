@@ -23,7 +23,7 @@ export default function ImproveResumeSection() {
           {/* Image */}
           <div className="w-full md:w-1/2 flex justify-center">
             <img
-              src="/resume-image.svg" // Replace with your image path
+              src="https://imgs.search.brave.com/qAGbj9CUAFJ9IZhNQITDHlT0rLgoqIU-AcaKAUJ6B8c/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly90aGlz/cmVzdW1lZG9lc25v/dGV4aXN0LmNvbS9k/YXRhL2JpbGwtZ2F0/ZXMvcmVzdW1lLnBu/Zw" // Replace with your image path
               alt="Resume preview"
               className="w-72 md:w-96"
             />

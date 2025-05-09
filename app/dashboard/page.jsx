@@ -4,16 +4,23 @@ import ParsedResumeDetails from "../components/ParsedResumeDetails";
 import PlagiarismResult from "../components/PlagiarismResult";
 import DomainSelection from "../components/DomainSelection";
 import { UploadCloud } from "lucide-react";
+import RecommendedJobs from "../components/RecommendedJobs"; 
 
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
-import RecommendedJobs from "../components/RecommendedJobs"; 
+
+
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  // state
+
+
+
+
 
   // State
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -28,6 +35,9 @@ export default function DashboardPage() {
   const [recommendedJobsSkills, setRecommendedJobsSkills] = useState([]); // State for skills
   const [previewFileUrl, setPreviewFileUrl] = useState(null);
   const [plagiarismResult, setPlagiarismResult] = useState(null);
+
+
+
 
 
   
@@ -266,6 +276,7 @@ export default function DashboardPage() {
 )}
 
       {/* Parsed Data */}
+    
       {parsedData && (
           <section className="mb-8">
             <h3 className="text-xl font-semibold mb-2">Parsed Resume Data</h3>
@@ -277,11 +288,10 @@ export default function DashboardPage() {
 
 {/* Plagiarism Result */}
 {parsedData?.text ? (
-  <PlagiarismResult textToCheck={parsedData?.text} />
+  <PlagiarismResult key={parsedData?.text} textToCheck={parsedData?.text} />
 ) : (
   <div>No text available to check plagiarism</div>
 )}
-
       {/* More content below if any */}
     </div>
           </section>

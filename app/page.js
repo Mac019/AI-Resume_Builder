@@ -20,10 +20,7 @@ export default function HomePage() {
         {/* Buttons */}
         <div className="flex gap-4">
   
-          <AuthButton />
-          <button className="border border-white px-6 py-3 rounded-md font-semibold">
-            Login
-          </button>
+        
         </div>
       </main>
 

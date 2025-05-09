@@ -34,23 +34,13 @@ const HeroSection = () => {
         </div>
 
         {/* Image mockup */}
-        <div className="bg-white rounded-lg shadow-md p-4 text-black">
-          <p className="text-xl font-bold mb-2">Your resume scored 78 out of 100.</p>
-          <div className="flex justify-between mt-6">
-            <div>
-              <h3 className="text-sm font-semibold">IMPACT</h3>
-              <p className="text-lg font-bold text-green-600">100</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">BREVITY</h3>
-              <p className="text-lg font-bold text-orange-500">65</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">STYLE</h3>
-              <p className="text-lg font-bold text-lime-600">90</p>
-            </div>
-          </div>
-        </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+  <img
+    src="https://resumeworded.com/assets/images/updated-homepage-sketch.png"
+    alt="Resume Analysis"
+    className="w-full h-auto rounded"
+  />
+</div>
       </div>
 
       {/* Popup */}

@@ -45,7 +45,7 @@ export default function RecommendedJobs({ skills }) {
         </div>
       ) : jobs.length > 0 ? (
         <ul className="space-y-6">
-          {jobs.map((job, index) => (
+          {jobs.slice(0, 6).map((job, index) => (
             <li
               key={index}
               className="flex flex-col bg-gradient-to-r from-blue-800 to-blue-600 p-6 rounded-xl shadow-lg hover:shadow-2xl transition duration-500 transform hover:scale-105"

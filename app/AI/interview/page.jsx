@@ -72,11 +72,11 @@ const Interview = () => {
       }
     };
 
-    return map[domain]?.[currentQuestion] || [];
+    return map[domain]?.[questions[questionIndex]] || [];
   };
 
   const evaluateAnswer = (answerText) => {
-    const keywords = getKeywords(currentQuestion);
+    const keywords = getKeywords();
     const normalizedAnswer = answerText.toLowerCase();
     let matchedKeywords = 0;
 
@@ -134,42 +134,48 @@ const Interview = () => {
   const currentQuestion = questions[questionIndex];
 
   return (
-    <main className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">AI Interview - {domain}</h1>
+    <main className="p-6 max-w-3xl mx-auto min-h-screen bg-gray-100">
+      <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">AI Interview - {domain}</h1>
 
       {interviewFinished ? (
-        <div className="text-xl font-semibold text-green-700">
-          Interview Finished! Your total score: {score} / {questions.length * 100}
+        <div className="text-2xl font-semibold text-green-700 bg-green-100 p-4 rounded shadow">
+          🎉 Interview Finished! <br />
+          Your total score: <strong>{score}</strong> / {questions.length * 100}
         </div>
       ) : currentQuestion ? (
         <>
-          <div className="bg-white p-4 rounded mb-4 shadow-lg">
-            <p className="text-lg font-medium">Q{questionIndex + 1}: {currentQuestion}</p>
+          <div className="bg-white p-6 rounded shadow mb-6">
+            <p className="text-lg font-semibold text-gray-800">Question {questionIndex + 1} of {questions.length}:</p>
+            <p className="mt-2 text-gray-700">{currentQuestion}</p>
           </div>
 
-          <button
-            onClick={startListening}
-            className={`mb-4 px-6 py-2 rounded text-white ${isListening ? 'bg-red-600' : 'bg-blue-600'}`}
-          >
-            {isListening ? 'Listening...' : 'Answer with Voice'}
-          </button>
+          <div className="flex gap-4 mb-6">
+            <button
+              onClick={startListening}
+              className={`px-6 py-2 rounded font-medium shadow-md transition ${
+                isListening ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+              } text-white`}
+            >
+              {isListening ? '🎤 Listening...' : '🎙️ Answer with Voice'}
+            </button>
+
+            <button
+              onClick={handleNextQuestion}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-medium shadow-md"
+            >
+              {questionIndex + 1 < questions.length ? 'Next Question ➡️' : 'Finish Interview ✅'}
+            </button>
+          </div>
 
           {answer && (
-            <div className="bg-white border p-4 rounded shadow mb-4">
-              <p className="text-sm text-gray-600">Your Answer:</p>
-              <p className="mt-1">{answer}</p>
+            <div className="bg-white border-l-4 border-indigo-500 p-4 rounded shadow mb-4">
+              <p className="text-sm text-gray-600 font-semibold mb-1">Your Answer:</p>
+              <p className="text-gray-800">{answer}</p>
             </div>
           )}
-
-          <button
-            onClick={handleNextQuestion}
-            className="bg-green-600 text-white px-4 py-2 rounded"
-          >
-            {questionIndex + 1 < questions.length ? 'Next Question' : 'Finish Interview'}
-          </button>
         </>
       ) : (
-        <p>Loading questions for {domain}...</p>
+        <p className="text-gray-600 text-center">🔄 Loading questions for <strong>{domain}</strong>...</p>
       )}
     </main>
   );

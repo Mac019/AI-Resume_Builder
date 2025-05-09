@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { CheckCircle, AlertTriangle } from "lucide-react"; // Optional: For icons
+import { CheckCircle, AlertTriangle } from "lucide-react";
 
 export default function PlagiarismResult({ textToCheck }) {
   const [plagiarismResult, setPlagiarismResult] = useState(null);
@@ -8,20 +8,10 @@ export default function PlagiarismResult({ textToCheck }) {
   useEffect(() => {
     if (!textToCheck) return;
 
-    // Simulate API check
+    // Generate a random score between 15% and 50%
     setTimeout(() => {
-      const mockSimilarityScore = Math.random() * 100;
-      const mockMatches = [
-        "Match 1: User has worked as a Front-End Web Developer at Efilia Technologies, specializing in ReactJS and Tailwind CSS.",
-        "Match 2: User developed a React-based app for booking rooms in scenic mountain locations with a responsive interface.",
-        "Match 3: Experience as a guitarist and bass player in Firodiya Karandak, enhancing performance impact.",
-        "Match 4: Makarand Jagadale is passionate about creating user-centric applications, specializing in ReactJS and NodeJS.",
-      ];
-
-      setPlagiarismResult({
-        similarity: Math.round(mockSimilarityScore),
-        matches: mockMatches,
-      });
+      const similarity = Math.floor(Math.random() * (50 - 15 + 1)) + 15;
+      setPlagiarismResult({ similarity });
     }, 1000);
   }, [textToCheck]);
 
@@ -48,26 +38,26 @@ export default function PlagiarismResult({ textToCheck }) {
     );
   }
 
-  const { similarity, matches } = plagiarismResult;
+  const { similarity } = plagiarismResult;
   const color =
     similarity < 30
       ? "bg-green-500"
-      : similarity < 70
+      : similarity < 40
       ? "bg-yellow-500"
-      : "bg-red-500";
+      : "bg-orange-500";
 
   return (
     <section className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 w-full max-w-2xl">
       <h3 className="text-2xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-        {similarity < 50 ? (
+        {similarity < 40 ? (
           <CheckCircle className="text-green-500" />
         ) : (
-          <AlertTriangle className="text-red-500" />
+          <AlertTriangle className="text-orange-500" />
         )}
         Plagiarism Check Result
       </h3>
 
-      <div className="mb-4">
+      <div>
         <p className="text-gray-600 font-medium mb-2">Similarity Score:</p>
         <div className="relative w-full h-6 bg-gray-200 rounded-lg overflow-hidden">
           <div
@@ -79,21 +69,6 @@ export default function PlagiarismResult({ textToCheck }) {
           </span>
         </div>
       </div>
-
-      {matches.length > 0 ? (
-        <div>
-          <p className="text-gray-600 font-medium mb-2">Matched Content:</p>
-          <ul className="list-disc pl-6 space-y-1 text-gray-700">
-            {matches.map((match, index) => (
-              <li key={index} className="bg-gray-50 px-3 py-2 rounded-md border">
-                {match}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <p className="text-gray-500 italic">No matched content found.</p>
-      )}
     </section>
   );
 }
